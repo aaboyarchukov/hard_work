@@ -5,7 +5,6 @@ import (
 	"errors"
 	"time"
 
-	"git.dip.pics/dip/go/infrastructure.git/observability/logger"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
 )
@@ -21,8 +20,6 @@ func (s *Service) CreateClientIdentification(ctx context.Context, clientID int64
 		if err != nil {
 			return err
 		}
-
-		logger.Info("upload documents")
 
 		existClient, err := s.personRepo.ExistClient(ctx, clientID)
 		if err != nil {
@@ -78,8 +75,6 @@ func (s *Service) CreateClientIdentification(ctx context.Context, clientID int64
 			return err
 		}
 
-		logger.Info("get provider id success")
-
 		statusId, err := s.identificationRepo.GetStatusId(ctx, NEW_STATUS)
 		if err != nil {
 			return err
@@ -91,7 +86,6 @@ func (s *Service) CreateClientIdentification(ctx context.Context, clientID int64
 			for _, u := range uploadedFiles {
 				documentTypeId, errGet := s.documentsRepo.GetDocumentTypeId(ctx, u.Type)
 				if errGet != nil {
-					logger.Error("get document type failed", "msg", errGet)
 					return errGet
 				}
 
@@ -112,7 +106,6 @@ func (s *Service) CreateClientIdentification(ctx context.Context, clientID int64
 
 			err = s.documentsRepo.SaveClientDocuments(ctx, documentFileIds, clientID)
 			if err != nil {
-				logger.Error("save person docs", "msg", err)
 				return err
 			}
 		}
