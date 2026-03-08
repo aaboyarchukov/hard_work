@@ -2,7 +2,7 @@ package example2
 
 // [1, 2, 3, 5, 6] 0
 func BinarySearchLeft(array []int, target int) int {
-	left, right := 0, len(array)-1
+	left, right := 0, len(array)
 
 	for left < right {
 		middle := (left + right) / 2
@@ -11,9 +11,10 @@ func BinarySearchLeft(array []int, target int) int {
 			left = middle + 1
 		}
 
-		if target < array[middle] {
+		if target <= array[middle] {
 			right = middle
 		}
+
 	}
 
 	return left

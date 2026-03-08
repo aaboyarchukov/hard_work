@@ -21,7 +21,7 @@ func TestBinarySearchLeft(t *testing.T) {
 			"one element array -> append",
 			[]int{1},
 			2,
-			0,
+			1,
 		},
 		{
 			"one element array -> switch",
@@ -34,6 +34,12 @@ func TestBinarySearchLeft(t *testing.T) {
 			[]int{1, 3, 5, 7, 9},
 			4,
 			2,
+		},
+		{
+			"odd elements array -> append",
+			[]int{1, 3, 5, 7, 9},
+			10,
+			5,
 		},
 	}
 
