@@ -15,7 +15,19 @@ func TestBinarySearchLeft(t *testing.T) {
 			"empty array",
 			[]int{},
 			1,
-			-1,
+			0,
+		},
+		{
+			"one element array -> append",
+			[]int{1},
+			2,
+			0,
+		},
+		{
+			"one element array -> switch",
+			[]int{1},
+			0,
+			0,
 		},
 	}
 
