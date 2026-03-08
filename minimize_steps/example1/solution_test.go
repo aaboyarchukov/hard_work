@@ -18,6 +18,11 @@ func TestStrictlyMonotonousSequence(t *testing.T) {
 			[]int{},
 			[]int{},
 		},
+		{
+			"one element array",
+			[]int{1},
+			[]int{1},
+		},
 	}
 
 	for _, testCase := range cases {
