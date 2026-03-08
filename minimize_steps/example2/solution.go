@@ -12,7 +12,7 @@ func BinarySearchLeft(array []int, target int) int {
 		}
 
 		if target < array[middle] {
-			right = middle - 1
+			right = middle
 		}
 	}
 

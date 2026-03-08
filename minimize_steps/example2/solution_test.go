@@ -29,6 +29,12 @@ func TestBinarySearchLeft(t *testing.T) {
 			0,
 			0,
 		},
+		{
+			"odd elements array -> switch",
+			[]int{1, 3, 5, 7, 9},
+			4,
+			2,
+		},
 	}
 
 	for _, testCase := range cases {
