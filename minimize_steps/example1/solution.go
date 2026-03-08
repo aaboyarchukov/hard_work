@@ -1,8 +1,11 @@
 package example1
 
 func StrictlyMonotonousSequence(array []int) []int {
-	if len(array) <= 1 {
+	size := len(array)
+	if size <= 1 {
 		return array
 	}
-	return []int{1}
+
+	result := make([]int, 0, size)
+	return result
 }
