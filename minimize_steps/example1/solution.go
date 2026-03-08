@@ -1,22 +1,6 @@
 package example1
 
-func BinarySearchLeft(array []int, target int) int {
-	left, right := 0, len(array)-1
-
-	for left < right {
-		middle := (left + right) / 2
-
-		if array[middle] >= target {
-			return middle
-		}
-
-		if array[middle] < target {
-			left = middle + 1
-		}
-	}
-
-	return -1
-}
+import "minimize_steps/example2"
 
 func StrictlyMonotonousSequence(array []int) []int {
 	size := len(array)
@@ -28,7 +12,7 @@ func StrictlyMonotonousSequence(array []int) []int {
 	collection := make([]int, 0, size)
 	for indx := range array {
 		target := array[indx]
-		collection_pos := BinarySearchLeft(collection, target)
+		collection_pos := example2.BinarySearchLeft(collection, target)
 
 		if collection_pos == -1 {
 			collection = append(collection, target)
