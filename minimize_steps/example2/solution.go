@@ -1,6 +1,5 @@
 package example2
 
-// [1, 2, 3, 5, 6] 0
 func BinarySearchLeft(array []int, target int) int {
 	left, right := 0, len(array)
 
