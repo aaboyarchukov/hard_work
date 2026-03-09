@@ -28,6 +28,11 @@ func TestStrictlyMonotonousSequence(t *testing.T) {
 			[]int{7, 1, 2, 3, 0, 4, 5, 6, 5},
 			[]int{1, 2, 3, 4, 5, 6},
 		},
+		{
+			"even elements array",
+			[]int{1, 2, 3, 4, 5, 6},
+			[]int{1, 2, 3, 4, 5, 6},
+		},
 	}
 
 	for _, testCase := range cases {
