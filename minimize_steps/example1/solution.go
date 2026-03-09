@@ -13,7 +13,6 @@ func StrictlyMonotonousSequence(array []int) []int {
 
 	collection := make([]int, 0, size)
 	parents := make([]int, size)
-	parents[0] = -1
 
 	for indx := range array {
 		target := array[indx]
@@ -27,6 +26,8 @@ func StrictlyMonotonousSequence(array []int) []int {
 
 		if collection_pos > 0 {
 			parents[collection_pos] = collection[collection_pos-1]
+		} else {
+			parents[collection_pos] = -1
 		}
 	}
 
