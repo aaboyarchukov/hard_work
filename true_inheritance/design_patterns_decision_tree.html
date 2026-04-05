@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Дерево решений: паттерны проектирования</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background: #f7f7f5;
+  color: #1d1d1b;
+  padding: 24px 16px;
+  min-height: 100vh;
+}
+@media (prefers-color-scheme: dark) {
+  body { background: #1a1a18; color: #e8e6dc; }
+}
+.container { max-width: 600px; margin: 0 auto; }
+h1 {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  text-align: center;
+  color: #1d1d1b;
+}
+@media (prefers-color-scheme: dark) {
+  h1 { color: #e8e6dc; }
+}
+.question-card {
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.1);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 12px;
+}
+@media (prefers-color-scheme: dark) {
+  .question-card { background: #2c2c2a; border-color: rgba(255,255,255,0.1); }
+}
+.question-text {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+.breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 16px;
+  font-size: 13px;
+}
+.breadcrumb-item {
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.1);
+  border-radius: 6px;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+  color: #666;
+}
+@media (prefers-color-scheme: dark) {
+  .breadcrumb-item { background: #2c2c2a; border-color: rgba(255,255,255,0.1); color: #aaa; }
+}
+.breadcrumb-item:hover { background: #f0f0ee; }
+@media (prefers-color-scheme: dark) {
+  .breadcrumb-item:hover { background: #3d3d3a; }
+}
+.breadcrumb-sep { color: #999; font-size: 12px; }
+.option-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 14px 16px;
+  margin-bottom: 8px;
+  background: #f7f7f5;
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 8px;
+  font-size: 15px;
+  color: #1d1d1b;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  line-height: 1.5;
+  font-family: inherit;
+}
+.option-btn:hover {
+  border-color: rgba(0,0,0,0.2);
+  background: #eeeee9;
+}
+@media (prefers-color-scheme: dark) {
+  .option-btn { background: #1a1a18; border-color: rgba(255,255,255,0.08); color: #e8e6dc; }
+  .option-btn:hover { background: #333; border-color: rgba(255,255,255,0.2); }
+}
+.option-btn:last-child { margin-bottom: 0; }
+.result-card {
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 12px;
+}
+.result-name {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  line-height: 1.3;
+}
+.result-desc {
+  font-size: 15px;
+  line-height: 1.6;
+}
+.result-signal {
+  margin-top: 14px;
+  padding-top: 14px;
+  font-size: 14px;
+  line-height: 1.5;
+  opacity: 0.85;
+}
+.cr { background: #EEEDFE; border: 1px solid #AFA9EC; }
+.cr .result-name { color: #3C3489; }
+.cr .result-desc { color: #534AB7; }
+.cr .result-signal { color: #534AB7; border-top: 1px solid #AFA9EC; }
+.st { background: #E1F5EE; border: 1px solid #5DCAA5; }
+.st .result-name { color: #085041; }
+.st .result-desc { color: #0F6E56; }
+.st .result-signal { color: #0F6E56; border-top: 1px solid #5DCAA5; }
+.bh { background: #FAEEDA; border: 1px solid #FAC775; }
+.bh .result-name { color: #633806; }
+.bh .result-desc { color: #854F0B; }
+.bh .result-signal { color: #854F0B; border-top: 1px solid #FAC775; }
+@media (prefers-color-scheme: dark) {
+  .cr { background: #26215C; border-color: #534AB7; }
+  .cr .result-name { color: #CECBF6; }
+  .cr .result-desc { color: #AFA9EC; }
+  .cr .result-signal { color: #AFA9EC; border-top-color: #534AB7; }
+  .st { background: #04342C; border-color: #0F6E56; }
+  .st .result-name { color: #9FE1CB; }
+  .st .result-desc { color: #5DCAA5; }
+  .st .result-signal { color: #5DCAA5; border-top-color: #0F6E56; }
+  .bh { background: #412402; border-color: #854F0B; }
+  .bh .result-name { color: #FAC775; }
+  .bh .result-desc { color: #EF9F27; }
+  .bh .result-signal { color: #EF9F27; border-top-color: #854F0B; }
+}
+.reset-btn {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 10px 20px;
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.1);
+  border-radius: 8px;
+  font-size: 14px;
+  color: #666;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+.reset-btn:hover { background: #f0f0ee; }
+@media (prefers-color-scheme: dark) {
+  .reset-btn { background: #2c2c2a; border-color: rgba(255,255,255,0.1); color: #aaa; }
+  .reset-btn:hover { background: #3d3d3a; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Дерево решений: паттерны проектирования</h1>
+  <div id="app"></div>
+</div>
+<script>
+const nodes = {
+  root: {
+    q: 'Какую проблему вы решаете?',
+    opts: [
+      { label: 'Создание объектов (Creational)', next: 'creational' },
+      { label: 'Структура связей между объектами (Structural)', next: 'structural' },
+      { label: 'Управление поведением (Behavioural)', next: 'behavioural' }
+    ]
+  },
+  creational: {
+    q: 'Сколько экземпляров нужно?',
+    opts: [
+      { label: 'Ровно один на всё приложение', next: 'singleton' },
+      { label: 'Несколько', next: 'cr_complex' }
+    ]
+  },
+  cr_complex: {
+    q: 'Конструктор сложный или легко использовать неправильно?',
+    opts: [
+      { label: 'Да — много параметров, комбинации важны', next: 'builder' },
+      { label: 'Нет — создание простое, но нужно выбрать тип', next: 'cr_who' }
+    ]
+  },
+  cr_who: {
+    q: 'Кто решает, какой конкретный класс создавать?',
+    opts: [
+      { label: 'Подкласс определяет тип', next: 'factory_method' },
+      { label: 'Нужна целая семья связанных объектов', next: 'abstract_factory' },
+      { label: 'Клонировать существующий объект дешевле', next: 'prototype' }
+    ]
+  },
+  structural: {
+    q: 'Какова цель?',
+    opts: [
+      { label: 'Совместить несовместимые интерфейсы', next: 'adapter' },
+      { label: 'Упростить сложную подсистему', next: 'facade' },
+      { label: 'Добавлять ответственности динамически', next: 'decorator' },
+      { label: 'Контролировать доступ к объекту', next: 'proxy' },
+      { label: 'Единообразно обрабатывать дерево', next: 'composite' },
+      { label: 'Экономить память на общем состоянии', next: 'flyweight' },
+      { label: 'Варьировать абстракцию и реализацию независимо', next: 'bridge' }
+    ]
+  },
+  behavioural: {
+    q: 'Какое поведение нужно?',
+    opts: [
+      { label: 'Пропустить запрос через цепочку проверок', next: 'chain' },
+      { label: 'Ставить действия в очередь / отменять / повторять', next: 'command' },
+      { label: 'Менять алгоритм без изменения вызывающего кода', next: 'strategy' },
+      { label: 'Поведение зависит от состояния, условия множатся', next: 'state' },
+      { label: 'Уведомления «один-ко-многим»', next: 'observer' },
+      { label: 'Снимки и восстановление состояния', next: 'memento' },
+      { label: 'Координатор для снижения связности', next: 'mediator' },
+      { label: 'Новые операции над стабильной структурой', next: 'visitor' }
+    ]
+  },
+  singleton: { result: true, cls: 'cr', name: 'Singleton', desc: 'Гарантирует один экземпляр на весь процесс. Но dependency injection или контейнер приложения обычно стареют лучше, чем глобальный экземпляр.', signal: 'Сигнал: несколько компонентов обращаются к одному и тому же ресурсу (логгер, конфигурация, пул соединений).' },
+  builder: { result: true, cls: 'cr', name: 'Builder', desc: 'Делает создание объекта явным и валидирует комбинации аргументов на ранней стадии. Упрощает создание пресетов.', signal: 'Сигнал: конструктор с 5+ параметрами, часть из которых необязательна, а комбинации важны.' },
+  factory_method: { result: true, cls: 'cr', name: 'Factory Method', desc: 'Базовый класс определяет контракт, подклассы решают, какой конкретный тип создавать.', signal: 'Сигнал: код постоянно решает, какой класс создать, в зависимости от конфигурации или типа файла.' },
+  abstract_factory: { result: true, cls: 'cr', name: 'Abstract Factory', desc: 'Создаёт семью связанных объектов, которые должны сочетаться друг с другом (например, провайдер-специфичные клиент + маппер + валидатор).', signal: 'Сигнал: несколько объектов, которые должны быть из одного «семейства» и работать вместе.' },
+  prototype: { result: true, cls: 'cr', name: 'Prototype', desc: 'Клонирование существующего настроенного объекта дешевле или безопаснее, чем создание с нуля, особенно если инициализация дорогая.', signal: 'Сигнал: дорогая инициализация, объекты отличаются лишь незначительно.' },
+  adapter: { result: true, cls: 'st', name: 'Adapter', desc: 'Транслирует имена методов и формы данных, когда у стороннего API или легаси-кода интерфейс не совпадает с вашим.', signal: 'Сигнал: API mismatch — метод называется иначе или принимает данные в другом формате.' },
+  facade: { result: true, cls: 'st', name: 'Facade', desc: 'Предоставляет одну точку входа в сложную подсистему, где нужно вызывать несколько шагов в определённом порядке.', signal: 'Сигнал: клиенты вынуждены вызывать 3-5 методов подсистемы в правильной последовательности.' },
+  decorator: { result: true, cls: 'st', name: 'Decorator', desc: 'Оборачивает один и тот же интерфейс, позволяя стекать функциональность: логирование + шифрование + сжатие без взрыва подклассов.', signal: 'Сигнал: нужны комбинации фич (logging + encryption + caching), а подклассы для каждой комбинации невозможны.' },
+  proxy: { result: true, cls: 'st', name: 'Proxy', desc: 'Объект-заместитель для ленивой загрузки, кэширования, контроля доступа или инструментации за локальным интерфейсом.', signal: 'Сигнал: хочется добавить lazy-load, кэш или проверку прав, не меняя исходный объект.' },
+  composite: { result: true, cls: 'st', name: 'Composite', desc: 'Позволяет обрабатывать листья и контейнеры единообразно, когда домен образует иерархию (файловая система, UI-дерево).', signal: 'Сигнал: данные естественно образуют дерево, и нужно вызывать одну и ту же операцию на любом узле.' },
+  flyweight: { result: true, cls: 'st', name: 'Flyweight', desc: 'Разделяет общее внутреннее состояние между множеством объектов, когда дублирование дорого.', signal: 'Сигнал: тысячи объектов с одинаковыми данными — шрифты в редакторе, тайлы в рендерере.' },
+  bridge: { result: true, cls: 'st', name: 'Bridge', desc: 'Разделяет абстракцию и реализацию, чтобы они менялись независимо. Избегает матрицы подклассов.', signal: 'Сигнал: два измерения изменений (формат экспорта × назначение, тип устройства × тип пульта).' },
+  chain: { result: true, cls: 'bh', name: 'Chain of Responsibility', desc: 'Каждый обработчик решает: остановить или передать дальше. Шаги мелкие и тестируемые.', signal: 'Сигнал: пайплайн проверок — rate limiting → auth → authorization → handler.' },
+  command: { result: true, cls: 'bh', name: 'Command', desc: 'Представляет действия как объекты: очереди задач, ретраи, аудит-логи, undo-стеки.', signal: 'Сигнал: нужно логировать, отменять, ставить в очередь или повторять действия.' },
+  strategy: { result: true, cls: 'bh', name: 'Strategy', desc: 'Несколько реализаций одного поведения за одним интерфейсом. Вызывающий код остаётся стабильным.', signal: 'Сигнал: повторяющееся ветвление «if plan X do this, if plan Y do that» с дублированием setup.' },
+  state: { result: true, cls: 'bh', name: 'State', desc: 'Делает поведение явным для каждого состояния. Убирает сложное ветвление по режимам и переходам.', signal: 'Сигнал: объект ведёт себя по-разному в зависимости от режима (connected/disconnected, draft/review/published).' },
+  observer: { result: true, cls: 'bh', name: 'Observer', desc: 'Подписочные обновления: субъект не знает деталей подписчиков, подписчики реагируют на изменения.', signal: 'Сигнал: при изменении одного объекта нужно уведомить N других, не привязывая их друг к другу.' },
+  memento: { result: true, cls: 'bh', name: 'Memento', desc: 'Сохраняет и восстанавливает состояние объекта без раскрытия его внутренней структуры.', signal: 'Сигнал: undo/redo, откаты, восстановление предыдущих версий.' },
+  mediator: { result: true, cls: 'bh', name: 'Mediator', desc: 'Снижает связность, централизуя координацию. Объекты общаются через посредника, а не напрямую.', signal: 'Сигнал: N объектов общаются друг с другом напрямую, и связи превращаются в клубок.' },
+  visitor: { result: true, cls: 'bh', name: 'Visitor', desc: 'Добавляет новые операции к стабильной структуре объектов (например, AST) без изменения самих узлов.', signal: 'Сигнал: структура не меняется, но нужно добавлять новые операции (type check, pretty print, codegen).' }
+};
+
+let path = [];
+let current = 'root';
+
+function render() {
+  const app = document.getElementById('app');
+  let html = '';
+  if (path.length > 0) {
+    html += '<div class="breadcrumb">';
+    html += '<span class="breadcrumb-item" onclick="reset()">Начало</span>';
+    path.forEach(function(p, i) {
+      html += '<span class="breadcrumb-sep">\u203A</span>';
+      html += '<span class="breadcrumb-item" onclick="goBack(' + i + ')">' + p.label + '</span>';
+    });
+    html += '</div>';
+  }
+  var node = nodes[current];
+  if (node.result) {
+    html += '<div class="result-card ' + node.cls + '">';
+    html += '<div class="result-name">' + node.name + '</div>';
+    html += '<div class="result-desc">' + node.desc + '</div>';
+    html += '<div class="result-signal">' + node.signal + '</div>';
+    html += '</div>';
+    html += '<button class="reset-btn" onclick="reset()">Начать сначала</button>';
+  } else {
+    html += '<div class="question-card">';
+    html += '<div class="question-text">' + node.q + '</div>';
+    node.opts.forEach(function(opt) {
+      html += '<button class="option-btn" onclick="choose(\'' + opt.next + '\', \'' + opt.label.replace(/'/g, "\\'") + '\')">' + opt.label + '</button>';
+    });
+    html += '</div>';
+  }
+  app.innerHTML = html;
+}
+
+function choose(nextId, label) {
+  path.push({ id: current, label: label });
+  current = nextId;
+  render();
+  window.scrollTo(0, 0);
+}
+
+function goBack(index) {
+  current = path[index].id;
+  path = path.slice(0, index);
+  render();
+}
+
+function reset() {
+  path = [];
+  current = 'root';
+  render();
+  window.scrollTo(0, 0);
+}
+
+render();
+</script>
+</body>
+</html>
