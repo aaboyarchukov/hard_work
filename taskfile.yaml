@@ -1,0 +1,12 @@
+version: '3'
+
+tasks:
+
+  run-task:
+
+    vars:
+      CURRENT_TASK_DIR: "true_inheritance"
+      CURRENT_FILE: "false_inharitance.py"
+  
+    cmds:
+      - 'python3.12 {{.CURRENT_TASK_DIR}}/{{.CURRENT_FILE}}'
