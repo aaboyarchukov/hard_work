@@ -315,6 +315,351 @@ func (r *Repository) Get(ctx context.Context, email string) (string, error) {
 
 Многие представляют процесс рефакторинга, как перетаскивание кусочков кода, в различные модули, объединяя их, или декомпозируя. Но о рефакториге важно думать как о способе нахождения общих связей и их последующего упрощения, для того, чтобы по итогу получилось простое приложение, которое будет легко сопровождать в будущем. То есть необходимо очень сильно задумываться именно о простом структурировании кода, о его дизайне, таким образом, чтобы система получалась максимально структуризированной, эффективной и простой.
 
+### Примеры
+
+Отвязал конкретные реализации хендлеров и перешел к интерфейсам, также поменял структуру в проекте - разделив на домены хендлеры.
+
+До:
+
+Структура выглядела вот так:
+
+```
+internal/server/handlers
+├── apispec.go
+├── apispec_test.go
+├── assets
+│   ├── qualification_data.json
+│   ├── veksel_terms_rub_v1.json
+│   └── veksel_terms_usd_v1.json
+├── auth.go
+├── auth_test.go
+├── chat.go
+├── chat_test.go
+├── common.go
+├── common_test.go
+```
+
+То есть все домены смешаны, а также все привязывалось к реализации:
+
+```
+
+```
+
+```go
+// internal/server/handlers/
+package handlers
+
+// Auth содержит хендлеры для аутентификации.
+type Auth struct {
+	authClient *authclient.Client
+}
+
+// NewAuth создает новый экземпляр Auth хендлеров.
+func NewAuth(authClient *authclient.Client) *Auth
+
+// LoginByPhone вход и/или регистрация исключительно по телефону.
+func (auth *Auth) LoginByPhone(w http.ResponseWriter, r *http.Request, _ api.LoginByPhoneParams)
+
+// LoginApprove подтверждение входа/регистрации (финальный шаг).
+func (auth *Auth) LoginApprove(w http.ResponseWriter, r *http.Request, _ api.LoginApproveParams)
+
+// Logout выход из системы.
+func (auth *Auth) Logout(w http.ResponseWriter, r *http.Request, _ api.LogoutParams)
+
+// OtpVerify проверка OTP кода.
+func (auth *Auth) OtpVerify(w http.ResponseWriter, r *http.Request, _ api.OtpVerifyParams)
+
+// OtpRetry повторная отправка OTP.
+func (auth *Auth) OtpRetry(w http.ResponseWriter, r *http.Request, _ api.OtpRetryParams)
+
+// RefreshToken обновление токенов.
+func (auth *Auth) RefreshToken(w http.ResponseWriter, r *http.Request, _ api.RefreshTokenParams)
+
+// VerifyEmail -запускает процесс верификации почтового адреса.
+func (auth *Auth) VerifyEmail(w http.ResponseWriter, r *http.Request, _ api.VerifyEmailParams)
+
+func (auth *Auth) ApproveEmail(w http.ResponseWriter, r *http.Request, _ api.ApproveEmailParams)
+```
+
+С помощью рефакторинга сделали так:
+
+```
+internal/components/endpoints
+├── broker
+│   └── assets
+├── calculators
+│   └── assets
+├── cards
+├── currencies
+├── dadata
+├── showcase
+│   ├── assets
+│   └── testdata
+└── unep
+```
+
+Домены разделены, а также уменьшена связность:
+
+```go
+package cards
+
+
+type (
+	PABEService interface {
+		ListCards(ctx context.Context, token string) (api.CardsList, error)
+
+		GetCard(ctx context.Context, token string, cardID uuid.UUID) (*api.Card, error)
+
+		FindInvoice(ctx context.Context, token string, invoiceID string) (api.Card, error)
+
+		IssueCard(
+			ctx context.Context,
+			token string,
+			idempotencyKey uuid.UUID,
+			request api.CardIssueRequest,
+		) (*api.CardIssueResponse, error)
+
+		CalculateCardQuote(
+			ctx context.Context,
+			token string,
+			request api.CardQuoteRequest,
+		) (*api.CardQuoteResponse, error)
+		FindOperationByInvoiceID(ctx context.Context, token string, invoiceID string) (api.Operation, error)
+
+		TopUpCard(
+			ctx context.Context,
+			token string,
+			cardID uuid.UUID,
+			idempotencyKey uuid.UUID,
+			paymentMethod monads.Optional[string],
+			request api.CardTopupRequest,
+		) (*api.CardTopupResponse, error)
+
+		FindSecrets(ctx context.Context, token string, cardID uuid.UUID) (api.CardSecrets, error)
+
+		FindOperations(
+			ctx context.Context,
+			token string,
+			cardID uuid.UUID,
+			filter api.CardOperationsCursorPaginationRequest,
+		) (api.CardOperationsResponse, error)
+	}
+
+	CardHandler struct {
+		pabeClient PABEService
+	}
+)
+
+func New(pabeClient PABEService) *CardHandler
+
+// TopUpCard — POST /v1/cards/{card_id}/topup.
+func (handler *CardHandler) TopUpCard(
+	w http.ResponseWriter,
+	r *http.Request,
+	cardID uuid.UUID,
+	params api.TopUpCardParams,
+)
+
+// ListCards — GET /v1/cards.
+func (handler *CardHandler) ListCards(w http.ResponseWriter, r *http.Request, _ api.ListCardsParams)
+
+// GetCard — GET /v1/cards/{card_id}.
+func (handler *CardHandler) GetCard(w http.ResponseWriter, r *http.Request, cardID uuid.UUID, _ api.GetCardParams)
+
+func (handler *CardHandler) GetCardInvoice(
+	writer http.ResponseWriter,
+	request *http.Request,
+	invoiceID uuid.UUID,
+	_ api.GetCardInvoiceParams,
+)
+
+func (handler *CardHandler) FindOperationByInvoice(
+	writer http.ResponseWriter, request *http.Request,
+	invoiceID uuid.UUID,
+	_ api.FindOperationByInvoiceParams,
+)
+
+// IssueCard — POST /v1/cards/issue.
+func (handler *CardHandler) IssueCard(w http.ResponseWriter, r *http.Request, params api.IssueCardParams)
+
+// CalculateCardQuote — POST /v1/cards/quote.
+func (handler *CardHandler) CalculateCardQuote(
+	w http.ResponseWriter,
+	r *http.Request,
+	_ api.CalculateCardQuoteParams,
+)
+
+func (handler *CardHandler) FindCardSecrets(
+	writer http.ResponseWriter,
+	request *http.Request,
+	cardID uuid.UUID,
+	_ api.FindCardSecretsParams,
+)
+
+func (handler *CardHandler) FindCardOperations(
+	writer http.ResponseWriter,
+	request *http.Request,
+	cardID uuid.UUID,
+	_ api.FindCardOperationsParams,
+)
+
+func (handler *CardHandler) ReturnCallback(
+	writer http.ResponseWriter,
+	request *http.Request,
+	label api.Label,
+)
+```
+
+Еще один из примеров, которые можно привести был в том, что мы явно указали, что не стоит дробить один большой файл на несколько маленьких (в рамках одного домена), где будут содержаться функции, относящиеся к одному домену:
+
+```
+internal/components/endpoints
+├── broker
+│   └── assets
+├── calculators
+│   └── assets
+├── cards
+├── currencies
+├── dadata
+├── showcase
+│   ├── assets
+│   └── testdata
+└── unep
+```
+
+```
+internal/components/endpoints/cards
+├── cards_get
+├── cards_post
+├── cards_delete
+...
+```
+
+Решили сделать так, что все будет в одном файле и просто в редакторах разработчики будут использовать инструмент - `Outline Panel`, который присутствует везде.
+
+После рефакторинга получилось вот так:
+
+```
+internal/components/endpoints/cards
+├── cards.go
+```
+
+Следующий пример в рефакторинге конструктора сервера, проблема в том, что функция создания как и структура принимает очень много значений, что не очень хорошо, поэтому следует абстрагировать общим интерфейсом отдельные сущности, вот как было до:
+
+```go
+package server
+
+type Server struct {
+	*handlers.Auth
+	*handlers.User
+	*handlers.Chat
+	*handlers.Reference
+	*calculators.CalculatorHandler
+	*cards.CardHandler
+	*showcaseHandler.ShowcaseHandler
+	*handlers.PABE
+	*handlers.Permission
+	*handlers.OperationsFilters
+	*handlers.ProductOperations
+	*handlers.Dadata
+	*dadataHandler.DadataHandler
+	*handlers.Gold
+	*handlers.Documents
+	*handlers.MediaHandler
+	*handlers.PersonalData
+	*broker.Handler
+	*unep.UnepHandler
+	*handlers.QualificationData
+	*currenciesHandler.CurrencyHandler
+
+	userClient       *user.Client
+	authClient       *auth.Client
+	a7ruClient       *a7ru.Client
+	pabeClient       *pabe.Client
+	chatClient       *chat.Client
+	permissionClient *permission.Client
+}
+
+// NewServer создает новый экземпляр сервера.
+func NewServer(
+	userClient *user.Client,
+	authClient *auth.Client,
+	a7ruClient *a7ru.Client,
+	pabeClient *pabe.Client,
+	brokerPABEClient *brokerpabe.Client,
+	cardsPABEClient *cardspabe.Client,
+	dadataPABEClient *dadatapabe.Client,
+	showcasePABEClient *showcasepabe.Client,
+	unepClient *unep_client.Client,
+	chatClient *chat.Client,
+	permissionClient *permission.Client,
+	feas config.FeasConfig,
+	storage *objectstorage.Client,
+	features *acl.AccessControlList,
+	mediaPrefix string,
+	showcasesFilter *hashset.HashSet[int64],
+	currenciesClient *currencies.Client,
+	consentsClient *consents.Client,
+	env config.Env,
+) *Server {
+	// ...
+}
+```
+
+После:
+
+```go
+package server
+
+type Server struct {
+	handler *server.Handler
+	client *server.Client
+}
+
+// NewServer создает новый экземпляр сервера.
+func NewServer(
+	client *server.Client,
+	handler *server.Handler,
+	config config.Config,
+	features *acl.AccessControlList,
+	showcasesFilter *hashset.HashSet[int64],
+) *Server {
+	// ...
+}
+```
+
+Здесь мы вынесли отдельно клиента как домен и хендлеры, получили более минималистичный код, который будет легко поддерживать и развивать, так как мы уменьшили связность.
+
 ## 3. Почему некоторые проектные решения нельзя отменить.
 
 Принятые вами архитектурные решения вначале - могут закрепиться и остаться, так что их потом попросту нельзя будет изменить, поэтому важно изначально подходить к проектированию с особым вниманием, чтобы выстроить хорошие архитектурные границы, которые в будущем составят именно хороший архитекрутный дизайн приложения, с которым мы будем готовы жить и развивать проект с максимальной простотой.
+
+## 4. Не переусердствуйте с интерьером.
+
+Не стоит уходить в безрассудную духоту - которая возникает на почве названия переменных и функций, например. Мы прежде всего стремимся к написанию простых систем, значит основной нашей целью должна быть простая структура приложения в целом и минимальная связность между его модулями и т.д.
+
+Если идеи рефакторинга основываются лишь на том, как же красиво назвать переменную или функцию - вы достигли лишь локального максимума, и если вы там застряли, то не так легко будет забраться на ту вершину, к которой необходимо стремится. Наша задача в правильной организации дизайна системы, а не ее "припудривание".
+
+## 5. Качество кода (в значительной степени) не имеет отношения к самому коду.
+
+Важно сперва думать о том - **"что делается"**, а не о том - "как это делается", когда мы начинаем думать о данных и их взаимосвязях - как самособой разумеющееся получаем чистый код. Если же поступать наоборот - начиная с низкого уровня, то в итоге простую систему будет построить сложнее, как и повышать качество кода. Сначала дизайн, затем код, а не наоборот.
+
+## 6. Застревание в старом дизайне.
+
+При возникновении вопросов к дизайну - важно изменить его так, чтобы он преобразился в простой! Не стоит застревать в старом дизайне, важно менять его - это окупится с лихвой в будущем, проект будет простым и лаконичным и его также будет легко поддерживать.
+
+> **В любом проекте возможен дизайн, который сделает код, который вы пишете,
+> красивым и простым**. Если выбранные проектные конструкции для этого не подходят,
+> то просто измените их.
+
+## 7. Что делает плохие тесты плохими?
+
+Плохие тесты делает "плохими" - не знание функциональности, не понимание проекта и его контекста. Важно проверять, что тот или иной код делает то, что должен в рамках проекта. Важно тестировать его смысл, его поведение и сущность, его побочные эффекты. Проверяйте не правильность выполнения операторов и команд в функции как таковых, проверяйте поведение кода в системе.
+
+> **Понимание системы -- это о чём-то большем, нежели просто покрытие кода
+> тестами**. Речь идет об одном из фундаментальных положений программной
+> инженерии: **думать о смысле, о предназначении программы, которое отличается от
+> самой программы, от её кода**.
+> Так что не проверяйте, что код делает то, что в нём непосредственно написано. 
+> **Убедитесь, что код делает именно то, что должен делать в рамках всей системы в
+> целом**.
