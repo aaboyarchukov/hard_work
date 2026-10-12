@@ -652,6 +652,175 @@ func NewServer(
 > красивым и простым**. Если выбранные проектные конструкции для этого не подходят,
 > то просто измените их.
 
+### Примеры
+
+- Снижение связности компонентов и увеличение модульности проекта
+  В одном их проектов изначальный дизайн был полный **BBofM** - все было завязано на имплементации, не было четких абстрактных классов и интерфейсов, которые определяли бы границы системы и ее спецификацию, а также не было документации, которая деклорировала спецификацию (пресловутый _open-api_). Из-за этого возникала сложность тестирования, подключение дополнительных модулей, общее увязывание системы, а также ориентирование в контексте. Для реализации нового функционала требовалось практически экспоненциальной сложности по времени.
+
+Решением было полностью переработать архитектуру проекта:
+
+- выделить модули и абстрагировать их интерфейсами/абстрактными классами
+- организовать единый _api_ для клиента, как документацию и единый источник правды
+
+Показываю на примере структуры проекта.
+
+Было:
+
+```
+├── api
+├── authentication_service
+├── cabinets
+├── client
+│   └── eis
+├── config
+├── consts
+├── dadata
+├── data_processing
+├── database
+│   ├── functions
+│   ├── migrations
+│   └── seed
+├── datetime_type
+├── edit_numbers
+├── enrich
+├── envflag
+├── excel
+│   ├── archives
+│   ├── data_analyze
+│   ├── equipment_persist
+│   ├── files_storage
+│   ├── kp
+│   ├── sheet_parser
+│   ├── templates
+│   ├── test
+│   │   ├── excel
+│   │   │   ├── 223_standart
+│   │   │   └── 44_standart
+│   │   └── pdf
+│   ├── uploads_equipment
+│   └── uploads_objects
+├── httpx
+├── jobs
+├── keywordmove
+├── membudget
+├── models
+│   └── test
+├── nextcloud
+├── routes_api
+├── routes_handlers
+├── server
+├── spool
+├── textsafe
+├── timer
+└── winner
+    └── testdata
+```
+
+Стало:
+
+```
+├── api
+├── cmd
+├── configs
+├── db
+├── docs
+├── infrastructure
+├── internal
+│   ├── app
+│   ├── clients
+│   ├── config
+│   ├── delivery
+│   │   └── http
+│   │       └── components
+│   │           ├── clients
+│   │           └── endpoints
+│   ├── repository
+│   │   ├── minio
+│   │   ├── postgres
+│   │   └── redis
+│   └── service
+├── testdata
+├── tools
+│   └── rag
+│
+└── utils
+```
+
+- Изменение контракта
+  До этого в проекте у нас был единый _open-api_, для которого требовалось каждый раз конвертировать ответ в тело _json_, что снижало переиспользуемость и вносило целую кучу повторений кода.
+
+```go
+// TopUpCard — POST /v1/cards/{card_id}/topup.
+func (handler *CardHandler) TopUpCard(
+	w http.ResponseWriter,
+	r *http.Request,
+	cardID uuid.UUID,
+	params api.TopUpCardParams,
+) {
+	ctx := r.Context()
+
+	var request api.CardTopupRequest
+
+	// И ВОТ ЭТО ВЫПОЛНЯЕТСЯ В КАЖДОМ ХЭНДЛЕРЕ!!!
+	err := json.NewDecoder(r.Body).Decode(&request)
+	if err != nil {
+		logger.Ctx(ctx).Warn("decode top up card request").Err(err).Send()
+
+		httpresponse.ErrInvalidRequest.Write(ctx, w)
+
+		return
+	}
+
+	result, err := handler.pabeClient.TopUpCard(
+		ctx,
+		letserve.ExtractToken(r),
+		cardID,
+		params.IdempotencyKey,
+		paymentMethod(params.PaymentMethod),
+		request,
+	)
+	if err != nil {
+		logger.Ctx(ctx).
+			Error("top up card").
+			Err(err).
+			String("card_id", cardID.String()).
+			Send()
+
+		httpresponse.MapPABEError(err).Write(ctx, w)
+
+		return
+	}
+
+	httpresponse.JSON(ctx, w, http.StatusOK, result)
+}
+```
+
+Можно использовать другой фреймворк для написания `api`, который будет более формальным, в котором будет строгая типизация, а также не будет необходимости в бесконечном _json_ конвертере: https://connectrpc.com/docs/go/getting-started/.
+
+Тогда имплементация будет выглядить следующим образом:
+
+```go
+var NullCardResponse = &apiV1.CardResponse{}
+
+func (handler *CardHandler) TopUpCard (
+	ctx context.Context,
+	req *apiV1.CardRequest
+) (*apiV1.CardResponse, error) {
+
+	result, err := handler.pabeClient.TopUpCard(...)
+
+	if err != nil {
+		return NullCardResponse, err
+	}
+
+	return &apiV1.CardResponse{
+		// fileds from result
+	}, nil
+}
+```
+
+Таким образом все хэндлеры в проекте будут более чистыми и мы уменьшим количество побочных эффектов, что приведет к более стабильной работе сервиса и легкому тестированию.
+
 ## 7. Что делает плохие тесты плохими?
 
 Плохие тесты делает "плохими" - не знание функциональности, не понимание проекта и его контекста. Важно проверять, что тот или иной код делает то, что должен в рамках проекта. Важно тестировать его смысл, его поведение и сущность, его побочные эффекты. Проверяйте не правильность выполнения операторов и команд в функции как таковых, проверяйте поведение кода в системе.
